@@ -1,4 +1,4 @@
-# Terraform Module: Simple Storage Service
+# Terraform Module: AWS RDS Instance
 
 ## Table of Contents
 
@@ -15,83 +15,221 @@
 
 ## Overview
 
-This Terraform module creates and manages AWS S3 with support for:
+Enterprise-grade Terraform module for deploying and managing AWS RDS Oracle databases with comprehensive security, monitoring, backup, and compliance features.
 
-- Bucket creation
-- Versioning and Object lock
-- Encryption and KMS key creation
-- Public access block
-- Lifecycle configuration
-- Bucket Policy
-- 
 ## Features
 
-  ### 🔒 Security
-- ✅ Server-side encryption (AES256 or KMS)
-- ✅ SSL/TLS enforcement
-- ✅ Public access blocking
-- ✅ Bucket policies with least privilege
-- ✅ IAM access controls
-- ✅ Versioning and MFA delete protection
-- ✅ Object lock for compliance
-- ✅ Encrypted logging
+### Oracle Engine Support
+- **Oracle Database Enterprise Edition (oracle-ee)**
+- **Oracle Database Standard Edition 2 (oracle-se2)**
+- **Container Database (CDB) variants**
+- **Supported Versions**: 12.1, 12.2, 19c, 21c
+- Future-proof version management
 
-### 📊 Lifecycle Management
-- ✅ Automatic object archival
-- ✅ Storage class transitions (S3, IA, Glacier, Deep Archive)
-- ✅ Expiration policies
-- ✅ Noncurrent version management
-- ✅ Incomplete multipart upload cleanup
-- ✅ Intelligent tiering
-- ✅ Option to choose required lifecycle policies as per bucket requirement.
+### Licensing & Deployment
+- **License Included (LI)** - Default
+- **Bring Your Own License (BYOL)**
+- **Single-AZ** deployment for dev/test
+- **Multi-AZ** deployment for production
 
-### 📋 Compliance & Governance
-- ✅ Access logging with audit trail
-- ✅ Inventory reports (CSV, Parquet, ORC)
-- ✅ CloudWatch metrics and alarms
-- ✅ Object lock (GOVERNANCE or COMPLIANCE mode)
-- ✅ Cross-region replication
-- ✅ Retention policies
-- ✅ Compliance summary reporting
+### Security (Enterprise-Grade)
+- **Encryption at Rest** - KMS encryption (mandatory)
+- **Secrets Manager Integration** - Automatic credential rotation
+- **Enhanced Monitoring** - OS-level metrics
+- **CloudWatch Logs** - Alert, Audit, Trace, Listener logs
+- **Network Isolation** - VPC subnet groups
+- **Security Groups** - Ingress/egress controls
+- **Deletion Protection** - Prevent accidental deletion
+- **IAM Database Authentication** - Optional
 
-- **Supports multiple types**: Development env, Production env - Max security and compliance, Static Website hosting, Backup-read only replica, Data lake - optimized for analysis.
-- **Access logs** configuration (S3 bucket & prefix).
-- **Deletion protection** toggle.
+### Backup & Recovery
+- **Automated Backups** - 7-35 days retention
+- **Manual Snapshots** - On-demand backups
+- **Point-in-Time Recovery** - Up to retention period
+- **Copy Tags to Snapshot** - Maintain metadata
+- **Final Snapshot** - Before deletion
+
+### Performance Features
+- **CloudWatch Alarms** - CPU, Storage, Connections, IOPS
+- **Provisioned IOPS** - io1/io2 storage with custom IOPS
+- **gp3 Storage** - Configurable IOPS and throughput
+
+### Organization Standards
+- ✅ **Required Tags** - CostCenter, Team, Compliance
+- ✅ **Tag Validation** - Enforced via preconditions
+- ✅ **Lifecycle Management** - Prevent destructive changes
 
 ## Requirements
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.14 |
-| aws | >= 6 |
+| terraform | >= 1.14.0 | 
+| aws | >= 6.0.0 |
 
-## Usage
+## Module Usage
+### Examples Directory Structure 
+- see the **`examples/`**` directory for small, focused examples you can copy and adapt.
 
-### Simple storage service
+- [Basic Production Example](#basic production example)
+- [High-Performance Production (Provisioned IOPS)](#High-Performance Production (Provisioned IOPS))
+- [Development/Test Environment (Standard Edition 2)](#Development/Test Environment (Standard Edition 2))
 
-This is just a sample code. Please refer to example folder for actual use case.
-
-### Basic Usage
+### Basic Production Example
 
 ```hcl
-module "s3_bucket" {
-  # Path to your S3 module
-  source = "../../tf-aws-module-s3"
+module "oracle_db" {
+  source = "../modules/"
 
-  project_name = "myapp"
-  environment  = "dev"
-  bucket_name  = "myapp-dev-bucket"
+  # Naming
+  environment = "production"
 
-  tags = {
-    Team = "Engineering"
+  # Engine Configuration
+  engine               = "oracle-ee"
+  engine_version       = "19.0.0"
+  license_model        = "license-included"
+
+  # Instance Configuration
+  instance_class    = "db.r6i.xlarge"
+  allocated_storage = 500
+  storage_type      = "gp3"
+  storage_encrypted = true
+
+  manage_master_user_password = true
+
+  # Network Configuration
+  subnet_ids             = ["subnet-xxx", "subnet-yyy"]
+  vpc_security_group_ids = ["sg-xxx"]
+  deployment_option      = "multi-az"
+
+  # Backup Configuration
+  backup_retention_period = 30
+
+  # Monitoring
+  enable_cloudwatch_logs      = true
+  enable_enhanced_monitoring  = true
+  enable_performance_insights = true
+
+  # CloudWatch Alarms
+  create_cloudwatch_alarms = true
+  alarm_actions           = ["arn:aws:sns:us-east-1:123456789012:rds-alarms"]
+
+  # Required Tags
+  required_tags = {
+    CostCenter = "Engineering"
+    Team       = "Platform"
+    Compliance = "SOC2"
   }
 }
 ```
-### Get Bucket Information
 
-```bash
-terraform output -from-module=./modules/s3
+### High-Performance Production (Provisioned IOPS)
+
+```hcl
+module "oracle_high_perf" {
+  source = "./modules/"
+
+  environment = "production"
+
+  # Oracle EE 21c
+  engine               = "oracle-ee"
+  engine_version_major = "21"
+  license_model        = "license-included"
+
+  # High-performance instance
+  instance_class    = "db.r6i.2xlarge"
+  allocated_storage = 1000
+  storage_type      = "io2"
+  iops              = 10000
+  storage_encrypted = true
+  max_allocated_storage     = 2000
+
+  # Network
+  subnet_ids             = var.subnet_ids
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  deployment_option      = "multi-az"
+
+  manage_master_user_password = true
+
+  # Backup
+  backup_retention_period = 35
+
+  # Monitoring - Extended retention
+  enable_cloudwatch_logs             = true
+  cloudwatch_log_types              = ["alert", "audit", "trace", "listener"]
+  enable_enhanced_monitoring         = true
+  monitoring_interval               = 30
+  enable_performance_insights        = true
+  performance_insights_retention_period = 731  # 2 years
+
+  # Security
+  deletion_protection = true
+
+  # CloudWatch Alarms
+  create_cloudwatch_alarms = true
+  alarm_actions           = [aws_sns_topic.alarms.arn]
+
+  # Required Tags
+  required_tags = {
+    CostCenter = "Engineering"
+    Team       = "Platform"
+    Compliance = "PCI-DSS"
+  }
+}
 ```
+### Development/Test Environment (Standard Edition 2)
+
+```hcl
+module "oracle_dev" {
+  source = "./modules/"
+
+  environment = "development"
+
+  # Oracle SE2 19c (lower cost)
+  engine               = "oracle-se2"
+  engine_version_major = "19"
+  license_model        = "license-included"
+
+  # Smaller instance
+  instance_class    = "db.t3.medium"
+  allocated_storage = 100
+  storage_type      = "gp3"
+  storage_encrypted = true
+
+  # Network
+  subnet_ids             = var.subnet_ids
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  deployment_option      = "single-az"  # Single-AZ for dev
+
+  # Database
+  database_name = "DEVDB"
+  manage_master_user_password = true
+
+  # Backup - shorter retention for dev
+  backup_retention_period = 7
+  skip_final_snapshot    = true
+
+  # Monitoring
+  # enable_cloudwatch_logs      = true
+  #enable_enhanced_monitoring  = true
+  #enable_performance_insights = true
+
+  # Security - less strict for dev
+  deletion_protection = false
+  apply_immediately   = true
+
+  # CloudWatch Alarms
+  #create_cloudwatch_alarms = true
+  #alarm_actions           = [aws_sns_topic.alarms.arn]
+
+  # Required Tags
+  required_tags = {
+    CostCenter = "Engineering"
+    Team       = "Development"
+    Compliance = "Internal"
+  }
+}
+```
+
 ## Configuration Guide
 
 ### Basic Parameters
@@ -105,118 +243,9 @@ terraform output -from-module=./modules/s3
 
 ### Versioning
 
-Enable versioning for data protection and recovery:
 
-```hcl
-enable_versioning = true
-enable_mfa_delete = false  # Requires root account setup
-```
 
 ### Object Lock (Compliance)
-
-Prevent object deletion for regulatory requirements:
-
-```hcl
-enable_object_lock       = true
-object_lock_default_mode = "COMPLIANCE"  # or "GOVERNANCE"
-object_lock_default_years = 7
-```
-
-### Encryption
-
-**AES256 (Default)**
-```hcl
-encryption_type = "aes256"
-```
-
-**KMS (Recommended for sensitive data)**
-```hcl
-encryption_type = "kms"
-kms_key_id      = ""  # Auto-create or provide existing key
-bucket_key_enabled = true  # Reduces KMS API calls
-```
-
-### Public Access Control
-
-Block all public access (recommended):
-
-```hcl
-acl                     = "private"
-block_public_acls       = true
-block_public_policy     = true
-ignore_public_acls      = true
-restrict_public_buckets = true
-```
-
-Allow public read-only:
-
-```hcl
-acl                     = "public-read"
-block_public_acls       = false
-block_public_policy     = false
-ignore_public_acls      = false
-restrict_public_buckets = false
-```
-
-### Lifecycle Rules
-
-Archive and delete objects based on age:
-
-```hcl
-lifecycle_rules = [
-  {
-    id      = "archive-old-objects"
-    enabled = true
-    prefix  = ""
-    
-    # Transition to cheaper storage
-    transitions = [
-      {
-        days          = 30
-        storage_class = "STANDARD_IA"
-      },
-      {
-        days          = 90
-        storage_class = "GLACIER"
-      },
-      {
-        days          = 365
-        storage_class = "DEEP_ARCHIVE"
-      }
-    ]
-
-    
-    # Delete after 7 years
-    expiration = {
-      days = 2555
-    }
-    
-    # Clean old versions
-    noncurrent_version_expiration = {
-      noncurrent_days = 90
-    }
-    
-    # Clean incomplete uploads
-    abort_incomplete_multipart_upload = {
-      days_after_initiation = 7
-    }
-  }
-]
-```
-### Logging Configuration
-
-Enable access logging for audit trails:
-
-```hcl
-enable_logging     = true
-log_prefix         = "access-logs/"
-log_retention_days = 2555  # 7 years
-```
-
-### Replication (Disaster Recovery)
-
-
-### CORS Configuration
 
 ## Resources
 
@@ -302,10 +331,6 @@ Refer examples folder for complete examples:
 | <a name="input_username"></a> [username](#input\_username) | Username for the master DB user | `string` | `null` | no |
 | <a name="input_vpc_security_group_ids"></a> [vpc\_security\_group\_ids](#input\_vpc\_security\_group\_ids) | List of VPC security groups to associate | `list(string)` | `[]` | no |
 
-## Outputs
-
-| Name | Description |
-|------|-------------|
 ## Outputs
 
 | Name                     | Description                                                  |
