@@ -68,7 +68,12 @@ Enterprise-grade Terraform module for deploying and managing AWS RDS Oracle data
 
 ## Module Usage
 ### Examples Directory Structure 
+
 see the **`examples/`**` directory for small, focused examples you can copy and adapt.
+
+1. **Basic Production Example** - Multi-AZ with all features
+2. **Development/Test Environment (Standard Edition 2)** - Single-AZ cost-optimized
+3. **High-Performance Production** - Provisioned IOPS
 
 - [Basic Production Example](#basicproductionexample)
 - [Development/Test Environment (Standard Edition 2)](#basicproductionexample)
@@ -229,6 +234,126 @@ module "oracle_dev" {
   }
 }
 ```
+### With Custom Parameters and Options
+
+```hcl
+module "oracle_custom" {
+  source = "./modules/rds-oracle"
+
+  name_prefix = "myapp"
+  environment = "production"
+
+  engine               = "oracle-ee"
+  engine_version_major = "19"
+
+  instance_class    = "db.r6i.xlarge"
+  allocated_storage = 500
+  storage_encrypted = true
+
+  subnet_ids             = var.subnet_ids
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  deployment_option      = "multi-az"
+
+  database_name = "PRODDB"
+  manage_master_user_password = true
+
+  # Custom Parameter Group
+  create_parameter_group = true
+  parameter_group_family = "oracle-ee-19"
+  parameters = [
+    {
+      name  = "open_cursors"
+      value = "2000"
+    },
+    {
+      name  = "processes"
+      value = "500"
+    },
+    {
+      name  = "sessions"
+      value = "555"
+    },
+    {
+      name  = "db_file_multiblock_read_count"
+      value = "64"
+    }
+  ]
+
+  # Custom Option Group
+  create_option_group = true
+  options = [
+    {
+      option_name = "OEM"
+      port        = 5500
+      vpc_security_group_memberships = [aws_security_group.rds.id]
+      option_settings = [
+        {
+          name  = "OMS_PORT"
+          value = "5500"
+        }
+      ]
+    },
+    {
+      option_name = "STATSPACK"
+    }
+  ]
+
+  enable_cloudwatch_logs      = true
+  enable_enhanced_monitoring  = true
+  enable_performance_insights = true
+
+  create_cloudwatch_alarms = true
+  alarm_actions           = [aws_sns_topic.alarms.arn]
+
+  required_tags = {
+    CostCenter = "Engineering"
+    Team       = "Database"
+    Compliance = "SOC2"
+  }
+}
+```
+
+### Restore from Snapshot
+
+```hcl
+module "oracle_restored" {
+  source = "./modules/rds-oracle"
+
+  name_prefix = "myapp-restored"
+  environment = "production"
+
+  engine               = "oracle-ee"
+  engine_version_major = "19"
+
+  instance_class    = "db.r6i.xlarge"
+  allocated_storage = 500
+  storage_encrypted = true
+
+  # Restore from snapshot
+  snapshot_identifier = "arn:aws:rds:us-east-1:123456789012:snapshot:myapp-snapshot-2024-01-15"
+
+  subnet_ids             = var.subnet_ids
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  deployment_option      = "multi-az"
+
+  manage_master_user_password = true
+
+  backup_retention_period = 30
+
+  enable_cloudwatch_logs      = true
+  enable_enhanced_monitoring  = true
+  enable_performance_insights = true
+
+  create_cloudwatch_alarms = true
+  alarm_actions           = [aws_sns_topic.alarms.arn]
+
+  required_tags = {
+    CostCenter = "Engineering"
+    Team       = "DR"
+    Compliance = "SOC2"
+  }
+}
+```
 
 ## Configuration Guide
 
@@ -255,22 +380,12 @@ module "oracle_dev" {
 | [aws_db_instance.this] | resource |
 | [aws_iam_role_policy_attachment.enhanced_monitoring] | resource |
 
-
-## Examples
-
-Refer examples folder for complete examples:
-
-1. Development - Minimal setup with basic security
-2. Production - Maximum security with compliance
-3. Website - Static site hosting
-4. Backup - Immutable archive bucket
-
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | allocated_storage | The allocated storage in gigabytes | `number` | `n/a` | yes |
-| <a name="input_allow_major_version_upgrade"></a> [allow\_major\_version\_upgrade](#input\_allow\_major\_version\_upgrade) | Indicates that major version upgrades are allowed. Changing this parameter does not result in an outage and the change is asynchronously applied as soon as possible | `bool` | `false` | no |
+| allow_major_version_upgrade(#input\_allow\_major\_version\_upgrade) | Indicates that major version upgrades are allowed. Changing this parameter does not result in an outage and the change is asynchronously applied as soon as possible | `bool` | `false` | no |
 | <a name="input_apply_immediately"></a> [apply\_immediately](#input\_apply\_immediately) | Specifies whether any database modifications are applied immediately, or during the next maintenance window | `bool` | `false` | no |
 | <a name="input_auto_minor_version_upgrade"></a> [auto\_minor\_version\_upgrade](#input\_auto\_minor\_version\_upgrade) | Indicates that minor engine upgrades will be applied automatically to the DB instance during the maintenance window | `bool` | `true` | no |
 | <a name="input_backup_retention_period"></a> [backup\_retention\_period](#input\_backup\_retention\_period) | The days to retain backups for | `number` | `null` | no |
@@ -352,10 +467,122 @@ Refer examples folder for complete examples:
 | `security_group_id`      | ID of the security group                                      |
 | `route53_records`        | The Route53 records created and attached to the load balancer |
 
-## Notes
--	Weighted Forwarding is only available for Application Load Balancers. Weighted forwarding requires actions with multiple target_groups and weight values.
--	If using HTTPS, ensure an ACM certificate is available in the same region.
--	Target group protocols must match listener protocols in supported combinations.
-- WAFv2 is only supported for ALB.
-- Ensure the subnets belong to the same VPC.
-- For detailed use case, please refer example folder
+## Outputs
+
+### Primary Outputs
+
+| Name | Description |
+|------|-------------|
+| db_instance_endpoint | Database endpoint (host:port) |
+| db_instance_address | Database hostname |
+| db_instance_port | Database port |
+| db_connection_string | JDBC connection string |
+| db_credentials_secret_arn | Secrets Manager ARN |
+| db_instance_id | RDS instance identifier |
+| db_instance_arn | RDS instance ARN |
+
+### Security & Monitoring
+
+| Name | Description |
+|------|-------------|
+| rds_kms_key_arn | KMS key ARN for encryption |
+| cloudwatch_alarm_cpu_id | CPU alarm ID |
+| cloudwatch_alarm_storage_id | Storage alarm ID |
+| cloudwatch_alarm_connections_id | Connections alarm ID |
+
+For complete output documentation, see [outputs.tf](modules/rds-oracle/outputs.tf).
+
+## Oracle Versions Supported
+
+| Version | Major Version | Status | Family |
+|---------|--------------|--------|--------|
+| 12.1.0.2.v* | 12.1 | Legacy | oracle-ee-12.1 |
+| 12.2.0.1.ru-* | 12.2 | Legacy | oracle-ee-12.2 |
+| 19.0.0.0.ru-* | 19 | LTS (Recommended) | oracle-ee-19 |
+| 21.0.0.0.ru-* | 21 | Current | oracle-ee-21 |
+
+**Note**: Version 19 is the current Long Term Support (LTS) release.
+
+## Security Best Practices
+
+### 1. Encryption
+```hcl
+storage_encrypted = true  # MANDATORY
+create_kms_key    = true  # Recommended
+```
+
+### 2. Network Isolation
+```hcl
+publicly_accessible = false  # ENFORCED
+deployment_option   = "multi-az"  # Production
+```
+
+### 3. Access Control
+```hcl
+manage_master_user_password = true  # Use Secrets Manager
+vpc_security_group_ids      = [sg_id]  # Restrict access
+```
+
+### 4. Monitoring & Auditing
+```hcl
+enable_cloudwatch_logs      = true
+cloudwatch_log_types       = ["alert", "audit", "trace", "listener"]
+enable_enhanced_monitoring  = true
+enable_performance_insights = true
+```
+
+### 5. Backup & Recovery
+```hcl
+backup_retention_period = 30  # 30 days for production
+skip_final_snapshot    = false
+copy_tags_to_snapshot  = true
+deletion_protection    = true
+```
+
+## Cost Optimization
+
+### 1. Right-Size Instances
+- Start with smaller instances
+- Monitor Performance Insights
+- Scale up based on metrics
+
+### 2. Storage Optimization
+```hcl
+enable_storage_autoscaling = true
+max_allocated_storage     = 2 * allocated_storage
+```
+
+### 3. Use gp3 Instead of io2
+- 20% cheaper than gp2
+- Configurable performance
+- Upgrade from gp2 without downtime
+
+### 4. Optimize Backups
+- 7 days for dev/test
+- 30 days for production
+- Delete old manual snapshots
+
+### 5. Reserved Instances
+- 30-60% savings
+- 1 or 3-year terms
+- Match instance class exactly
+
+## Troubleshooting
+
+### Common Issues
+
+**Issue**: Storage full
+- **Solution**: Enable storage autoscaling
+- **Monitor**: Free storage alarm
+
+**Issue**: High CPU
+- **Solution**: Upgrade instance class
+- **Monitor**: CPU utilization alarm
+
+**Issue**: Connection errors
+- **Solution**: Check security groups
+- **Verify**: VPC routing, NACLs
+
+**Issue**: Slow queries
+- **Solution**: Review Performance Insights
+- **Enable**: SQL tracing
