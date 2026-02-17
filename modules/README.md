@@ -76,8 +76,10 @@ see the **`examples/`**` directory for small, focused examples you can copy and 
 3. **High-Performance Production** - Provisioned IOPS
 
 - [Basic Production Example](#basicproductionexample)
-- [Development/Test Environment (Standard Edition 2)](#basicproductionexample)
 - [High-Performance Production (Provisioned IOPS)](#basicproductionexample)
+- [Development/Test Environment (Standard Edition 2)](#basicproductionexample)
+- [With Custom Parameters and Options](#basicproductionexample)
+- [Restore from Snapshot](#restore from snapshot)
 
 ### Basic Production Example
 
@@ -238,9 +240,8 @@ module "oracle_dev" {
 
 ```hcl
 module "oracle_custom" {
-  source = "./modules/rds-oracle"
+  source = "../modules/"
 
-  name_prefix = "myapp"
   environment = "production"
 
   engine               = "oracle-ee"
@@ -317,9 +318,8 @@ module "oracle_custom" {
 
 ```hcl
 module "oracle_restored" {
-  source = "./modules/rds-oracle"
+  source = "../modules/"
 
-  name_prefix = "myapp-restored"
   environment = "production"
 
   engine               = "oracle-ee"
@@ -363,13 +363,9 @@ module "oracle_restored" {
 |-----------|------|---------|-------------|
 | `project_name` | string | - | Project name (required) |
 | `environment` | string | - | Environment (dev, staging, prod) |
-| `bucket_name` | string | "" | Bucket name (auto-generated if empty) |
-| `tags` | map | {} | Common tags |
+
 
 ### Versioning
-
-
-
 ### Object Lock (Compliance)
 
 ## Resources
@@ -385,10 +381,10 @@ module "oracle_restored" {
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | allocated_storage | The allocated storage in gigabytes | `number` | `n/a` | yes |
-| allow_major_version_upgrade(#input\_allow\_major\_version\_upgrade) | Indicates that major version upgrades are allowed. Changing this parameter does not result in an outage and the change is asynchronously applied as soon as possible | `bool` | `false` | no |
-| <a name="input_apply_immediately"></a> [apply\_immediately](#input\_apply\_immediately) | Specifies whether any database modifications are applied immediately, or during the next maintenance window | `bool` | `false` | no |
-| <a name="input_auto_minor_version_upgrade"></a> [auto\_minor\_version\_upgrade](#input\_auto\_minor\_version\_upgrade) | Indicates that minor engine upgrades will be applied automatically to the DB instance during the maintenance window | `bool` | `true` | no |
-| <a name="input_backup_retention_period"></a> [backup\_retention\_period](#input\_backup\_retention\_period) | The days to retain backups for | `number` | `null` | no |
+| allow_major_version_upgrade | Indicates that major version upgrades are allowed. Changing this parameter does not result in an outage and the change is asynchronously applied as soon as possible | `bool` | `false` | no |
+| apply_immediately | Specifies whether any database modifications are applied immediately, or during the next maintenance window | `bool` | `false` | no |
+| auto_minor_version_upgrade | Indicates that minor engine upgrades will be applied automatically to the DB instance during the maintenance window | `bool` | `true` | no |
+| backup\_retention\_period | The days to retain backups for | `number` | `null` | no |
 | <a name="input_backup_window"></a> [backup\_window](#input\_backup\_window) | The daily time range (in UTC) during which automated backups are created if they are enabled. Example: '09:46-10:16'. Must not overlap with maintenance\_window | `string` | `null` | no |
 | <a name="input_cloudwatch_log_group_class"></a> [cloudwatch\_log\_group\_class](#input\_cloudwatch\_log\_group\_class) | Specified the log class of the log group. Possible values are: STANDARD or INFREQUENT\_ACCESS | `string` | `null` | no |
 | <a name="input_cloudwatch_log_group_kms_key_id"></a> [cloudwatch\_log\_group\_kms\_key\_id](#input\_cloudwatch\_log\_group\_kms\_key\_id) | The ARN of the KMS Key to use when encrypting log data | `string` | `null` | no |
