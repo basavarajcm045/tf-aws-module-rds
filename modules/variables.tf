@@ -175,6 +175,12 @@ variable "db_option" {
 
 # Enhanced monitoring Variables
 
+variable "enable_enhanced_monitoring" {
+  description = "Enable monitoring for RDS instance "
+  type = bool
+  default = true
+  
+}
 variable "rds_iam_roles" {
   description = "IAM roles to associate with the RDS instance"
   type = list(object({
@@ -566,7 +572,7 @@ variable "enabled_cloudwatch_logs_exports" {
 
 // 0 means retain indefinitely, set to a specific number of days to automatically delete logs after that period
 # === Cloudwatch Alarm Variables ===
-variable "cloudwatch_alarms" {
+/*variable "cloudwatch_alarms" {
   description = "A list of CloudWatch alarms to create for monitoring the RDS instance"
   type = object({
     enabled = optional(bool, false)
@@ -591,7 +597,7 @@ variable "cloudwatch_alarms" {
   
   default = null
 
-  /*validation {
+  validation {
     condition = alltrue([
       for alarm in var.cloudwatch_alarms :
       can(regex("^[a-zA-Z0-9_-]+$", alarm.threshold)) &&
@@ -604,9 +610,9 @@ variable "cloudwatch_alarms" {
     ])
 
     error_message = "cloudwatch_alarms must have valid names, metric names, namespaces, statistics, comparison operators, and positive evaluation periods and periods."
-  }*/
+  }
   
-}
+}*/
 
 variable "cloudwatch_log_group_retention_in_days" {
   description = "The retention period for the CloudWatch Log Group (in days)"

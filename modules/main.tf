@@ -381,8 +381,8 @@ resource "aws_db_instance" "this" {
   parameter_group_name   = local.parameter_group_name
   vpc_security_group_ids = var.vpc_security_group_ids
   option_group_name      = local.option_group_name
-  //monitoring_role_arn    = var.enable_enhanced_monitoring ? aws_iam_role.rds_monitoring[0].arn : null
-  //monitoring_interval    = var.monitoring_interval // in seconds
+  monitoring_role_arn    = var.enable_enhanced_monitoring ? aws_iam_role.rds_monitoring[0].arn : null
+  monitoring_interval    = var.monitoring_interval // in seconds
 
   performance_insights_enabled          = var.performance_insights_enabled
   performance_insights_retention_period = var.performance_insights_enabled ? var.performance_insights_retention_period : null
@@ -481,7 +481,7 @@ resource "aws_db_instance" "this" {
 }*/
 
 # Cloudwatch Alarms for RDS (optional, based on monitoring needs)
-resource "aws_cloudwatch_metric_alarm" "rds" {
+/*resource "aws_cloudwatch_metric_alarm" "rds" {
   for_each = var.cloudwatch_alarms.enabled ? { for alarm in var.cloudwatch_alarms.alarms : alarm.name => alarm } : {}
 
   alarm_name          = each.value.name
@@ -502,7 +502,7 @@ resource "aws_cloudwatch_metric_alarm" "rds" {
     }
   ]
 
-}
+}*/
 
 
 # Log groups will be created

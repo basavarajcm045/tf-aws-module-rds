@@ -123,7 +123,8 @@ module "oracle_db" {
   //]
 
   # IAM Role settings
-
+  enable_enhanced_monitoring = true
+  monitoring_interval = 60 // specify the interval, in seconds, between enhanced monitoring metrics collection. Valid values are 0 (disabled), 1, 5, 10, 15, 30, and 60. The default is 60.
   rds_iam_roles = [
     {
       role_arn     = data.aws_iam_role.existing.arn // example, replace with actual role ARN
@@ -167,7 +168,7 @@ module "oracle_db" {
 
   # CloudWatch metrics settings
 
-  cloudwatch_alarms = {
+  /*cloudwatch_alarms = {
     enabled = true
     alarms = {
       cpu_utilization = {
@@ -188,11 +189,11 @@ module "oracle_db" {
         alarm_actions       = [] // specify SNS topic ARNs or other actions to take when the alarm is triggered, if needed
       }
     }
-  }
+  }*/
 
   # CloudWatch Logs settings
   create_cloudwatch_log_group            = true
-  enabled_cloudwatch_logs_exports        = ["alert", "audit", "listener", "trace"] // specify the log types to export to CloudWatch Logs, refer to AWS documentation for supported log types for Oracle SE2.
+  enable_cloudwatch_logs                  = ["alert", "audit", "listener", "trace"] // specify the log types to export to CloudWatch Logs, refer to AWS documentation for supported log types for Oracle SE2.
   cloudwatch_log_group_retention_in_days = 14                                      // specify the retention period for the CloudWatch log groups in days
   cloudwatch_log_group_kms_key_id        = ""                                      // provide the KMS key ID to encrypt the CloudWatch log groups, if needed
   cloudwatch_log_group_skip_destroy      = false                                   // set to true to prevent the CloudWatch log groups from being destroyed when the RDS instance is deleted

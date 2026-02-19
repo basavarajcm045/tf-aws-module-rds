@@ -75,61 +75,12 @@ see the **`examples/`**` directory for small, focused examples you can copy and 
 2. **Development/Test Environment (Standard Edition 2)** - Single-AZ cost-optimized
 3. **High-Performance Production** - Provisioned IOPS
 
-- [Basic Production Example](#basicproductionexample)
-- [High-Performance Production (Provisioned IOPS)](#basicproductionexample)
-- [Development/Test Environment (Standard Edition 2)](#basicproductionexample)
-- [With Custom Parameters and Options](#basicproductionexample)
+- [Oracle Production Instance](#oracleproductioninstance)
+- [Mysql Production Instance](#mysqlproductioninsatnce)
+- [Postgress Production Instance](#postgressproductioninsatnce)
 - [Restore from Snapshot](#restore from snapshot)
 
-### Basic Production Example
-
-```hcl
-module "oracle_db" {
-  source = "../modules/"
-
-  # Naming
-  environment = "production"
-
-  # Engine Configuration
-  engine               = "oracle-ee"
-  engine_version       = "19.0.0"
-  license_model        = "license-included"
-
-  # Instance Configuration
-  instance_class    = "db.r6i.xlarge"
-  allocated_storage = 500
-  storage_type      = "gp3"
-  storage_encrypted = true
-
-  manage_master_user_password = true
-
-  # Network Configuration
-  subnet_ids             = ["subnet-xxx", "subnet-yyy"]
-  vpc_security_group_ids = ["sg-xxx"]
-  deployment_option      = "multi-az"
-
-  # Backup Configuration
-  backup_retention_period = 30
-
-  # Monitoring
-  #enable_cloudwatch_logs      = true
-  #enable_enhanced_monitoring  = true
-  #enable_performance_insights = true
-
-  # CloudWatch Alarms
-  create_cloudwatch_alarms = true
-  alarm_actions           = ["arn:aws:sns:us-east-1:123456789012:rds-alarms"]
-
-  # Required Tags
-  required_tags = {
-    CostCenter = "Engineering"
-    Team       = "Platform"
-    Compliance = "SOC2"
-  }
-}
-```
-
-### High-Performance Production (Provisioned IOPS)
+### Oracle Production Intance(Provisioned IOPS)
 
 ```hcl
 module "oracle_high_perf" {
@@ -139,7 +90,7 @@ module "oracle_high_perf" {
 
   # Oracle EE 21c
   engine               = "oracle-ee"
-  engine_version_major = "21"
+  engine_version       = "21"
   license_model        = "license-included"
 
   # High-performance instance
@@ -159,104 +110,6 @@ module "oracle_high_perf" {
 
   # Backup
   backup_retention_period = 35
-
-  # Monitoring - Extended retention
-  enable_cloudwatch_logs             = true
-  cloudwatch_log_types              = ["alert", "audit", "trace", "listener"]
-  enable_enhanced_monitoring         = true
-  monitoring_interval               = 30
-  enable_performance_insights        = true
-  performance_insights_retention_period = 731  # 2 years
-
-  # Security
-  deletion_protection = true
-
-  # CloudWatch Alarms
-  create_cloudwatch_alarms = true
-  alarm_actions           = [aws_sns_topic.alarms.arn]
-
-  # Required Tags
-  required_tags = {
-    CostCenter = "Engineering"
-    Team       = "Platform"
-    Compliance = "PCI-DSS"
-  }
-}
-```
-### Development/Test Environment (Standard Edition 2)
-
-```hcl
-module "oracle_dev" {
-  source = "./modules/"
-
-  environment = "development"
-
-  # Oracle SE2 19c (lower cost)
-  engine               = "oracle-se2"
-  engine_version_major = "19"
-  license_model        = "license-included"
-
-  # Smaller instance
-  instance_class    = "db.t3.medium"
-  allocated_storage = 100
-  storage_type      = "gp3"
-  storage_encrypted = true
-
-  # Network
-  subnet_ids             = var.subnet_ids
-  vpc_security_group_ids = [aws_security_group.rds.id]
-  deployment_option      = "single-az"  # Single-AZ for dev
-
-  # Database
-  database_name = "DEVDB"
-  manage_master_user_password = true
-
-  # Backup - shorter retention for dev
-  backup_retention_period = 7
-  skip_final_snapshot    = true
-
-  # Monitoring
-  # enable_cloudwatch_logs      = true
-  #enable_enhanced_monitoring  = true
-  #enable_performance_insights = true
-
-  # Security - less strict for dev
-  deletion_protection = false
-  apply_immediately   = true
-
-  # CloudWatch Alarms
-  #create_cloudwatch_alarms = true
-  #alarm_actions           = [aws_sns_topic.alarms.arn]
-
-  # Required Tags
-  required_tags = {
-    CostCenter = "Engineering"
-    Team       = "Development"
-    Compliance = "Internal"
-  }
-}
-```
-### With Custom Parameters and Options
-
-```hcl
-module "oracle_custom" {
-  source = "../modules/"
-
-  environment = "production"
-
-  engine               = "oracle-ee"
-  engine_version_major = "19"
-
-  instance_class    = "db.r6i.xlarge"
-  allocated_storage = 500
-  storage_encrypted = true
-
-  subnet_ids             = var.subnet_ids
-  vpc_security_group_ids = [aws_security_group.rds.id]
-  deployment_option      = "multi-az"
-
-  database_name = "PRODDB"
-  manage_master_user_password = true
 
   # Custom Parameter Group
   create_parameter_group = true
@@ -298,21 +151,82 @@ module "oracle_custom" {
       option_name = "STATSPACK"
     }
   ]
+  
+  # Monitoring - Extended retention
+  create_cloudwatch_log_group            = true
+  enabled_cloudwatch_logs_exports        = ["alert", "audit", "trace", "listener"]
+  cloudwatch_log_group_retention_in_days = 30
+  cloudwatch_log_group_kms_key_id = var.cloudwatch_kms_key
+  cloudwatch_log_group_skip_destroy = true
+  cloudwatch_log_group_class = STANDARD // INFREQUENT_ACCESS
+  region = var.region
 
-  enable_cloudwatch_logs      = true
-  enable_enhanced_monitoring  = true
-  enable_performance_insights = true
+  # CloudWatch Alarms
+  #create_cloudwatch_alarms = true
+  #alarm_actions           = [aws_sns_topic.alarms.arn]
 
-  create_cloudwatch_alarms = true
-  alarm_actions           = [aws_sns_topic.alarms.arn]
+  enable_enhanced_monitoring         = true
+  monitoring_interval                = 30
+  performance_insights_enabled        = true
+  performance_insights_retention_period = 731  # 2 years
 
+  # Security
+  deletion_protection = true
+}
+```
+### Oracle Development/Test Environment (Standard Edition 2)
+
+```hcl
+module "oracle_dev" {
+  source = "./modules/"
+
+  environment = "development"
+
+  # Oracle SE2 19c (lower cost)
+  engine               = "oracle-se2"
+  engine_version_major = "19"
+  license_model        = "license-included"
+
+  # Smaller instance
+  instance_class    = "db.t3.medium"
+  allocated_storage = 100
+  storage_type      = "gp3"
+  storage_encrypted = true
+
+  # Network
+  subnet_ids             = var.subnet_ids
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  deployment_option      = "single-az"  # Single-AZ for dev
+
+  # Database
+  database_name = "DEVDB"
+  manage_master_user_password = true
+
+  # Backup - shorter retention for dev
+  backup_retention_period = 7
+  skip_final_snapshot    = true
+
+  # Monitoring
+  # enable_cloudwatch_logs      = true
+  #enable_enhanced_monitoring  = true
+  #enable_performance_insights = true
+  
+  # Security - less strict for dev
+  deletion_protection = false
+  apply_immediately   = true
+
+  # Required Tags
   required_tags = {
     CostCenter = "Engineering"
-    Team       = "Database"
-    Compliance = "SOC2"
+    Team       = "Development"
+    Compliance = "Internal"
   }
 }
 ```
+### Mysql Production Instance
+
+  
+
 
 ### Restore from Snapshot
 
