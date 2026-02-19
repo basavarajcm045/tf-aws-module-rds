@@ -469,6 +469,42 @@ resource "aws_db_instance" "this" {
 
 }
 
+# Read replica creation based on conditions
+  // keep all same as primary RDS except identifier and source db instance arn, kms key for encryption, region for cross-region replication
+/*resource "aws_db_instance" "replica" {
+  count = var.create_replication ? 1 : 0
+  identifier          = "var.identifier-replica"
+  replicate_source_db = aws_db_instance.this[0].id
+  instance_class      = "db.m6i.large"
+
+  publicly_accessible = false
+}*/
+
+# Cloudwatch Alarms for RDS (optional, based on monitoring needs)
+resource "aws_cloudwatch_metric_alarm" "rds" {
+  for_each = var.cloudwatch_alarms.enabled ? { for alarm in var.cloudwatch_alarms.alarms : alarm.name => alarm } : {}
+
+  alarm_name          = each.value.name
+  alarm_description   = each.value.description
+  metric_name         = each.value.metric_name
+  namespace           = each.value.namespace
+  statistic           = each.value.statistic 
+  period              = each.value.period
+  evaluation_periods  = each.value.evaluation_periods
+  threshold           = each.value.threshold
+  comparison_operator = each.value.comparison_operator
+  alarm_actions       = each.value.alarm_actions
+
+  dimensions = [
+    {
+      name  = "DBInstanceIdentifier"
+      value = aws_db_instance.this[0].identifier
+    }
+  ]
+
+}
+
+
 # Log groups will be created
 resource "aws_cloudwatch_log_group" "this" {
   for_each = toset([for log in var.enabled_cloudwatch_logs_exports : log if var.create_db_instance && var.create_cloudwatch_log_group])

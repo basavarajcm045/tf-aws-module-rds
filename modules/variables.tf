@@ -565,6 +565,49 @@ variable "enabled_cloudwatch_logs_exports" {
 }
 
 // 0 means retain indefinitely, set to a specific number of days to automatically delete logs after that period
+# === Cloudwatch Alarm Variables ===
+variable "cloudwatch_alarms" {
+  description = "A list of CloudWatch alarms to create for monitoring the RDS instance"
+  type = object({
+    enabled = optional(bool, false)
+    alarm   = optional(map(object({
+      //name                = string
+      metric_name         = string
+      namespace           = optional(string)
+      statistic           = optional(string)
+      comparison_operator = optional(string, "GreaterThanOrEqualToThreshold")
+      threshold           = number
+      evaluation_periods  = optional(number)
+      period              = optional(number)
+      alarm_actions       = list(string)
+      dimensions          = optional(list(object({
+        name  = string
+        value = string
+      })))
+      //dimensions        = optional(map(string))
+        
+    })) )
+  })
+  
+  default = null
+
+  /*validation {
+    condition = alltrue([
+      for alarm in var.cloudwatch_alarms :
+      can(regex("^[a-zA-Z0-9_-]+$", alarm.threshold)) &&
+      can(regex("^[a-zA-Z0-9_.-]+$", alarm.metric_name)) &&
+      
+      contains(["Average", "Sum", "Minimum", "Maximum", "SampleCount"], alarm.statistic) &&
+      contains(
+        ["GreaterThanOrEqualToThreshold", "GreaterThanThreshold", "LessThanThreshold", "LessThanOrEqualToThreshold"], alarm.comparison_operator
+      ) && alarm.evaluation_periods > 0 && alarm.period > 0
+    ])
+
+    error_message = "cloudwatch_alarms must have valid names, metric names, namespaces, statistics, comparison operators, and positive evaluation periods and periods."
+  }*/
+  
+}
+
 variable "cloudwatch_log_group_retention_in_days" {
   description = "The retention period for the CloudWatch Log Group (in days)"
   type        = number

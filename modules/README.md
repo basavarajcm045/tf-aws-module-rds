@@ -112,9 +112,9 @@ module "oracle_db" {
   backup_retention_period = 30
 
   # Monitoring
-  enable_cloudwatch_logs      = true
-  enable_enhanced_monitoring  = true
-  enable_performance_insights = true
+  #enable_cloudwatch_logs      = true
+  #enable_enhanced_monitoring  = true
+  #enable_performance_insights = true
 
   # CloudWatch Alarms
   create_cloudwatch_alarms = true
