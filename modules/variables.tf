@@ -340,24 +340,37 @@ variable "multi_az" {
 variable "manage_master_user_password" {
   description = "Flag to determine whether to manage the master user password automatically (e.g., via AWS Secrets Manager)"
   type        = bool
-  default     = true
+  default     = false
 
 }
 
-variable "master_username" {
+variable "username" {
   description = "master username (required: password managed automatically if manage_master_user_password is true)"
   type        = string
-  default     = "dbadmin"
 
 }
 
-variable "master_password" {
+/*variable "master_username" {
+  description = "master username (required: password managed automatically if manage_master_user_password is true)"
+  type        = string
+
+}*/
+
+variable "password" {
   description = "master password (ruse only if manage_master_user_password is false)"
   type        = string
   default     = null
   sensitive   = true
 
 }
+
+/*variable "master_password" {
+  description = "master password (ruse only if manage_master_user_password is false)"
+  type        = string
+  default     = null
+  sensitive   = true
+
+}*/
 
 /*variable "port" {
   description = "The port number on which the DB instance accepts connections"

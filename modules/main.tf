@@ -179,12 +179,12 @@ resource "null_resource" "validate_rds_configuration" {
     }
 
     # -- validate_master_user_password --
-    precondition {
+    /*precondition {
       condition = (
         var.manage_master_user_password || (!var.manage_master_user_password && var.master_password != null)
       )
       error_message = "master_password must be provided when manage_master_user_password is false."
-    }
+    }*/
 
     # -- validate_replication_settings --
     precondition {
@@ -358,8 +358,8 @@ resource "aws_db_instance" "this" {
   auto_minor_version_upgrade = var.auto_minor_version_upgrade
   //custom_iam_instance_profile = "AWSRDSCustomInstanceProfile"
 
-  username                    = var.master_username
-  password                    = var.manage_master_user_password ? null : var.master_password
+  username                    = var.username
+  password                    = var.manage_master_user_password ? null : var.password
   manage_master_user_password = var.manage_master_user_password
   //master_user_secret_kms_key_id = aws_kms_key.rds.id //if not set, AWS uses default kms_key
   //port = var.port
@@ -381,7 +381,7 @@ resource "aws_db_instance" "this" {
   parameter_group_name   = local.parameter_group_name
   vpc_security_group_ids = var.vpc_security_group_ids
   option_group_name      = local.option_group_name
-  monitoring_role_arn    = var.enable_enhanced_monitoring ? aws_iam_role.rds_monitoring[0].arn : null
+  //monitoring_role_arn    = var.enable_enhanced_monitoring ? aws_iam_role.rds_monitoring[0].arn : null
   monitoring_interval    = var.monitoring_interval // in seconds
 
   performance_insights_enabled          = var.performance_insights_enabled

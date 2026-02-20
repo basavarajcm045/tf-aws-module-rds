@@ -174,6 +174,7 @@ module "oracle_high_perf" {
   deletion_protection = true
 }
 ```
+
 ### Oracle Development/Test Environment (Standard Edition 2)
 
 ```hcl
@@ -235,9 +236,8 @@ module "oracle_restored" {
   source = "../modules/"
 
   environment = "production"
-
   engine               = "oracle-ee"
-  engine_version_major = "19"
+  engine_version.      = "19"
 
   instance_class    = "db.r6i.xlarge"
   allocated_storage = 500
@@ -255,11 +255,8 @@ module "oracle_restored" {
   backup_retention_period = 30
 
   enable_cloudwatch_logs      = true
-  enable_enhanced_monitoring  = true
-  enable_performance_insights = true
 
-  create_cloudwatch_alarms = true
-  alarm_actions           = [aws_sns_topic.alarms.arn]
+  enable_performance_insights = true
 
   required_tags = {
     CostCenter = "Engineering"

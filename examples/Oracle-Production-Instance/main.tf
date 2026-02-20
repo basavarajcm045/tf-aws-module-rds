@@ -35,6 +35,14 @@ data "aws_iam_role" "existing" {
   name = "AWSServiceRoleForRDS"
 }
 
+data "aws_secretsmanager_secret" "rds" {
+  name = "prod/oracle/rds"
+}
+
+data "aws_secretsmanager_secret_version" "rds" {
+  secret_id = data.aws_secretsmanager_secret.rds.id
+}
+
 data "aws_rds_orderable_db_instance" "custom-oracle" {
   engine                     = "oracle-se2"
   engine_version             = "19.0.0.0.ru-2025-10.rur-2025-10.r1" # CEV engine version to be used
@@ -46,6 +54,10 @@ data "aws_rds_orderable_db_instance" "custom-oracle" {
 /*data "aws_kms_key" "by_id" {
   key_id = "example-" # KMS key associated with the CEV
 }*/
+
+locals {
+  rds_secret = jsondecode(data.aws_secretsmanager_secret_version.rds.secret_string)
+}
 
 module "oracle_db" {
   source = "../../modules"
@@ -124,7 +136,7 @@ module "oracle_db" {
 
   # IAM Role settings
   enable_enhanced_monitoring = true
-  monitoring_interval = 60 // specify the interval, in seconds, between enhanced monitoring metrics collection. Valid values are 0 (disabled), 1, 5, 10, 15, 30, and 60. The default is 60.
+  monitoring_interval        = 60 // specify the interval, in seconds, between enhanced monitoring metrics collection. Valid values are 0 (disabled), 1, 5, 10, 15, 30, and 60. The default is 60.
   rds_iam_roles = [
     {
       role_arn     = data.aws_iam_role.existing.arn // example, replace with actual role ARN
@@ -148,8 +160,12 @@ module "oracle_db" {
   publicly_accessible        = false
   auto_minor_version_upgrade = false
 
-  manage_master_user_password = true
-  master_username             = "adminuser"
+  username = local.rds_secret.username //No need to pass the username and password as variables, if manage_master_user_password is true 
+  password = local.rds_secret.password
+
+  manage_master_user_password = false
+  //master_username             = "adminuser"
+  //aws_db_instance.oracle.master_user_secret[0].secret_arn
 
   backup_retention_period = 7
   backup_window           = "03:00-04:00"
@@ -193,7 +209,7 @@ module "oracle_db" {
 
   # CloudWatch Logs settings
   create_cloudwatch_log_group            = true
-  enable_cloudwatch_logs                  = ["alert", "audit", "listener", "trace"] // specify the log types to export to CloudWatch Logs, refer to AWS documentation for supported log types for Oracle SE2.
+  enabled_cloudwatch_logs_exports        = ["alert", "audit", "listener", "trace"] // specify the log types to export to CloudWatch Logs, refer to AWS documentation for supported log types for Oracle SE2.
   cloudwatch_log_group_retention_in_days = 14                                      // specify the retention period for the CloudWatch log groups in days
   cloudwatch_log_group_kms_key_id        = ""                                      // provide the KMS key ID to encrypt the CloudWatch log groups, if needed
   cloudwatch_log_group_skip_destroy      = false                                   // set to true to prevent the CloudWatch log groups from being destroyed when the RDS instance is deleted
