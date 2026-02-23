@@ -44,10 +44,10 @@ data "aws_secretsmanager_secret_version" "rds" {
 }*/
 
 data "aws_rds_orderable_db_instance" "custom-oracle" {
-  engine                     = "oracle-se2"
-  engine_version             = "19.0.0.0.ru-2025-10.rur-2025-10.r1" # CEV engine version to be used
-  license_model              = "license-included"
-  storage_type               = "gp3"
+  engine                     = var.engine
+  engine_version             = var.engine_version # CEV engine version to be used
+  license_model              = var.license_model
+  storage_type               = var.storage_type
   preferred_instance_classes = ["db.m5.large", "db.r5.xlarge", "db.r5.2xlarge", "db.r5.4xlarge"]
 }
 
@@ -65,17 +65,17 @@ module "oracle_db" {
   vpc_id     = data.aws_vpc.default.id
   subnet_ids = data.aws_subnets.default.ids
 
-  deployment_mode = "oracle" // specify the deployment mode, either "oracle" for Oracle SE2 or "sqlserver" for SQL Server. This will determine the supported engine versions, parameter groups, and options available for the RDS instance.
-  environment     = "prod"
-  project         = "my-rds-oracle-project"
-  name            = "myims-db"
+  deployment_mode = var.deployment_mode // specify the deployment mode, either "oracle" for Oracle SE2 or "sqlserver" for SQL Server. This will determine the supported engine versions, parameter groups, and options available for the RDS instance.
+  environment     = var.environment
+  project         = var.project
+  name            = var.name
 
-  vpc_security_group_ids = ["sg-0a0368d327c6a80ea"] //attch all user-provided sg, if needed along with sg cretaed by this module.
+  vpc_security_group_ids = var.vpc_security_group_ids //attch all user-provided sg, if needed along with sg cretaed by this module.
   //[module.security_groups.db_sg.id] 
 
   # DB Parameter Group settings
   create_db_parameter_group = true
-  db_parameter_group_family = "oracle-se2-19"
+  db_parameter_group_family = var.db_parameter_group_family 
 
   db_parameter = [
     {
@@ -87,8 +87,8 @@ module "oracle_db" {
   ]
 
   # Option Group settings
-  create_db_option_group = false
-  major_engine_version   = 19
+  create_db_option_group = var.create_db_option_group
+  major_engine_version   = var.major_engine_version 
 
   // Add more options as needed, refer to AWS documentation for supported options and settings for Oracle SE2.
   // Note: Some options may require additional permissions or configurations, such as IAM roles for S3 integration or SMTP settings for UTL_MAIL. Ensure to review the AWS documentation for each option you intend to use and provide the necessary settings accordingly.
@@ -135,31 +135,26 @@ module "oracle_db" {
   //]
 
   # IAM Role settings
-  enable_enhanced_monitoring = true
+  enable_enhanced_monitoring = var.enable_enhanced_monitoring
   monitoring_interval        = 60 // specify the interval, in seconds, between enhanced monitoring metrics collection. Valid values are 0 (disabled), 1, 5, 10, 15, 30, and 60. The default is 60.
-  rds_iam_roles = [
-    {
-      role_arn     = data.aws_iam_role.existing.arn // example, replace with actual role ARN
-      feature_name = "EC2_INTEGRATION"              # example
-    }
-  ]
+  rds_iam_roles = var.rds_iam_roles // specify the IAM roles to associate with the RDS instance for enhanced monitoring or other features. Each role should be provided as a map with keys "role_arn" and "feature_name", where "role_arn" is the ARN of the IAM role and "feature_name" is the name of the feature that requires the role (e.g., "EC2_INTEGRATION", "KINESIS_STREAMS_INTEGRATION", etc.). Refer to AWS documentation for supported features and required permissions for each feature.
 
   # RDS instance settings
-  identifier                 = "my-ims-db-instance"
-  db_name                    = "IMSDB"
+  identifier                 = var.identifier
+  db_name                    = var.db_name
   engine                     = data.aws_rds_orderable_db_instance.custom-oracle.engine
   engine_version             = data.aws_rds_orderable_db_instance.custom-oracle.engine_version
   instance_class             = data.aws_rds_orderable_db_instance.custom-oracle.preferred_instance_classes[0]
   storage_type               = data.aws_rds_orderable_db_instance.custom-oracle.storage_type
-  allocated_storage          = 200
-  max_allocated_storage      = 500
+  allocated_storage          = var.allocated_storage
+  max_allocated_storage      = var.max_allocated_storage
   storage_encrypted          = true
   storage_throughput         = 1000
-  iops                       = 100
+  iops                       = var.iops
   license_model              = data.aws_rds_orderable_db_instance.custom-oracle.license_model
   publicly_accessible        = false
   auto_minor_version_upgrade = false
-  enable_storage_autoscaling = true
+  enable_storage_autoscaling = var.enable_storage_autoscaling
   //username = local.rds_secret.username //No need to pass the username and password as variables, if manage_master_user_password is true 
   //password = local.rds_secret.password
 
@@ -167,7 +162,7 @@ module "oracle_db" {
   master_username             = "adminuser"
   //aws_db_instance.oracle.master_user_secret[0].secret_arn
 
-  backup_retention_period = 7
+  backup_retention_period = var.backup_retention_period
   backup_window           = "03:00-04:00"
   maintenance_window      = "Sun:23:00-Mon:01:00"
   deletion_protection     = true

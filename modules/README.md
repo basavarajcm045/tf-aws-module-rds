@@ -132,7 +132,7 @@ module "oracle_prod" {
   # Custom Parameter Group
   create_parameter_group = true
   parameter_group_family = "oracle-ee-19"
-  parameters = [
+  db_parameter = [
     {
       name  = "open_cursors"
       value = "2000"
@@ -153,7 +153,10 @@ module "oracle_prod" {
 
   # Custom Option Group
   create_option_group = true
-  options = [
+  // Add more options as needed, refer to AWS documentation for supported options and settings for postgres SE2.
+  // Note: Some options may require additional permissions or configurations, such as IAM roles for S3 integration or SMTP settings for UTL_MAIL. Ensure to review the AWS documentation for each option you intend to use and provide the necessary settings accordingly.
+
+  db_options = [
     {
       option_name = "OEM"
       port        = 5500
@@ -172,6 +175,7 @@ module "oracle_prod" {
   
   # Monitoring - Extended retention
   create_cloudwatch_log_group            = true
+  // specify the log types to export to CloudWatch Logs, refer to AWS documentation for supported log types for postgres SE2.
   enabled_cloudwatch_logs_exports        = ["alert", "audit", "trace", "listener"]
   cloudwatch_log_group_retention_in_days = 30
   cloudwatch_log_group_kms_key_id = var.cloudwatch_kms_key

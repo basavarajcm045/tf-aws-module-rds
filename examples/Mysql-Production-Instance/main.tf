@@ -111,7 +111,7 @@ module "mysql_db" {
 
   # CloudWatch Logs settings
   create_cloudwatch_log_group            = true
-  enabled_cloudwatch_logs_exports        = ["general"] // specify the log types to export to CloudWatch Logs, refer to AWS documentation for supported log types for Oracle SE2.
+  enabled_cloudwatch_logs_exports        = ["general"] // specify the log types to export to CloudWatch Logs, refer to AWS documentation for supported log types for Mysql.
   cloudwatch_log_group_retention_in_days = 14          // specify the retention period for the CloudWatch log groups in days
   cloudwatch_log_group_kms_key_id        = ""          // provide the KMS key ID to encrypt the CloudWatch log groups, if needed
   cloudwatch_log_group_skip_destroy      = false       // set to true to prevent the CloudWatch log groups from being destroyed when the RDS instance is deleted

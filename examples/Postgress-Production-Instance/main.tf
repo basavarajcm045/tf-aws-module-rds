@@ -36,20 +36,12 @@ data "aws_iam_role" "existing" {
 }
 
 /*data "aws_secretsmanager_secret" "rds" {
-  name = "prod/oracle/rds"
+  name = "prod/postgres/rds"
 }
 
 data "aws_secretsmanager_secret_version" "rds" {
   secret_id = data.aws_secretsmanager_secret.rds.id
 }*/
-
-data "aws_rds_orderable_db_instance" "custom-oracle" {
-  engine                     = "oracle-se2"
-  engine_version             = "19.0.0.0.ru-2025-10.rur-2025-10.r1" # CEV engine version to be used
-  license_model              = "license-included"
-  storage_type               = "gp3"
-  preferred_instance_classes = ["db.m5.large", "db.r5.xlarge", "db.r5.2xlarge", "db.r5.4xlarge"]
-}
 
 /*data "aws_kms_key" "by_id" {
   key_id = "example-" # KMS key associated with the CEV
@@ -59,15 +51,15 @@ data "aws_rds_orderable_db_instance" "custom-oracle" {
   rds_secret = jsondecode(data.aws_secretsmanager_secret_version.rds.secret_string)
 }*/
 
-module "oracle_db" {
+module "postgress_db" {
   source = "../../modules"
 
   vpc_id     = data.aws_vpc.default.id
   subnet_ids = data.aws_subnets.default.ids
 
-  deployment_mode = "oracle" // specify the deployment mode, either "oracle" for Oracle SE2 or "sqlserver" for SQL Server. This will determine the supported engine versions, parameter groups, and options available for the RDS instance.
+  deployment_mode = "postgres" // specify the deployment mode, either "postgres" for postgres SE2 or "sqlserver" for SQL Server. This will determine the supported engine versions, parameter groups, and options available for the RDS instance.
   environment     = "prod"
-  project         = "my-rds-oracle-project"
+  project         = "my-rds-postgres-project"
   name            = "myims-db"
 
   vpc_security_group_ids = ["sg-0a0368d327c6a80ea"] //attch all user-provided sg, if needed along with sg cretaed by this module.
@@ -75,64 +67,22 @@ module "oracle_db" {
 
   # DB Parameter Group settings
   create_db_parameter_group = true
-  db_parameter_group_family = "oracle-se2-19"
+  db_parameter_group_family = "postgres17"
 
   db_parameter = [
     {
-      name         = "processes"
-      value        = "300"
-      apply_method = "pending-reboot" //"immediate", pending-reboot, //static parameters require reboot, dynamic parameters can be applied immediately.
+      name  = "autovacuum"
+      value = 1
+    },
+    {
+      name  = "client_encoding"
+      value = "utf8"
     }
-
   ]
 
   # Option Group settings
   create_db_option_group = false
-  major_engine_version   = 19
-
-  // Add more options as needed, refer to AWS documentation for supported options and settings for Oracle SE2.
-  // Note: Some options may require additional permissions or configurations, such as IAM roles for S3 integration or SMTP settings for UTL_MAIL. Ensure to review the AWS documentation for each option you intend to use and provide the necessary settings accordingly.
-  /*db_option = [
-    {
-      option_name = "OEM"
-      option_settings = [
-        {
-          name  = "PORT"
-          value = "5500"
-        }
-      ]
-    }*/ //,
-  /*{
-      option_name = "S3_INTEGRATION"
-      option_settings = [
-        {
-          name  = "IAM_ROLE_ARN"
-          value = "arn:aws:iam::123456789012:role/my-s3-integration-role"
-        }
-      ]
-    },*/
-  /*{
-      option_name = "UTL_MAIL"
-        option_settings = [
-          {
-            name  = "SMTP_HOST"
-            value = "smtp.example.com"
-          },
-          {
-            name  = "SMTP_PORT"
-            value = "587"
-          },
-          {
-            name  = "SMTP_USERNAME"
-            value = "smtp_user"
-          },
-          {
-            name  = "SMTP_PASSWORD"
-            value = "smtp_password"
-          }
-        ]
-    }*/
-  //]
+  major_engine_version   = 17
 
   # IAM Role settings
   enable_enhanced_monitoring = true
@@ -147,16 +97,16 @@ module "oracle_db" {
   # RDS instance settings
   identifier                 = "my-ims-db-instance"
   db_name                    = "IMSDB"
-  engine                     = data.aws_rds_orderable_db_instance.custom-oracle.engine
-  engine_version             = data.aws_rds_orderable_db_instance.custom-oracle.engine_version
-  instance_class             = data.aws_rds_orderable_db_instance.custom-oracle.preferred_instance_classes[0]
-  storage_type               = data.aws_rds_orderable_db_instance.custom-oracle.storage_type
+  engine                     = "postgres"
+  engine_version             = "17"
+  instance_class             = "db.t4g.large"
+  storage_type               = "gp3"
   allocated_storage          = 200
   max_allocated_storage      = 500
   storage_encrypted          = true
   storage_throughput         = 1000
   iops                       = 100
-  license_model              = data.aws_rds_orderable_db_instance.custom-oracle.license_model
+  license_model              = "postgresql-license"
   publicly_accessible        = false
   auto_minor_version_upgrade = false
   enable_storage_autoscaling = true
@@ -165,7 +115,7 @@ module "oracle_db" {
 
   manage_master_user_password = true
   master_username             = "adminuser"
-  //aws_db_instance.oracle.master_user_secret[0].secret_arn
+  //aws_db_instance.postgres.master_user_secret[0].secret_arn
 
   backup_retention_period = 7
   backup_window           = "03:00-04:00"
@@ -182,34 +132,9 @@ module "oracle_db" {
   performance_insights_enabled          = false
   performance_insights_retention_period = 7 // specify the retention period for Performance Insights data in days, or set to -1 for indefinite retention  
 
-  # CloudWatch metrics settings
-
-  /*cloudwatch_alarms = {
-    enabled = true
-    alarms = {
-      cpu_utilization = {
-        metric_name         = "CPUUtilization"
-        threshold           = 80
-        evaluation_periods  = 3
-        comparison_operator = "GreaterThanThreshold"
-        statistic           = "Average"
-        period              = 300
-        alarm_actions       = [] // specify SNS topic ARNs or other actions to take when the alarm is triggered, if needed
-      }
-      free_storage_space = {
-        threshold           = 20 * 1024 * 1024 * 1024 // 20 GB in bytes
-        evaluation_periods  = 3
-        comparison_operator = "LessThanThreshold"
-        statistic           = "Average"
-        period              = 300
-        alarm_actions       = [] // specify SNS topic ARNs or other actions to take when the alarm is triggered, if needed
-      }
-    }
-  }*/
-
   # CloudWatch Logs settings
   create_cloudwatch_log_group            = true
-  enabled_cloudwatch_logs_exports        = ["alert", "audit", "listener", "trace"] // specify the log types to export to CloudWatch Logs, refer to AWS documentation for supported log types for Oracle SE2.
+  enabled_cloudwatch_logs_exports        = ["postgresql", "upgrade"] 
   cloudwatch_log_group_retention_in_days = 14                                      // specify the retention period for the CloudWatch log groups in days
   cloudwatch_log_group_kms_key_id        = "data.aws_kms_key.by_id"                // provide the KMS key ID to encrypt the CloudWatch log groups, if needed
   cloudwatch_log_group_skip_destroy      = false                                   // set to true to prevent the CloudWatch log groups from being destroyed when the RDS instance is deleted

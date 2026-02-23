@@ -1,5 +1,5 @@
 
-# Mysql Production Instance Example
+# Postgres Production Instance Example
 
 ## Purpose
 
@@ -17,7 +17,7 @@ These examples are intended for production-grade deployments with monitoring, ba
 
 ## What this Example Cretaes
 
-- Amazon RDS MySQL instance
+- Amazon RDS Postgres instance
 
 - DB Subnet Group (private subnets)
 
@@ -37,7 +37,7 @@ These examples are intended for production-grade deployments with monitoring, ba
 
 ### Engine
 
-- Engine: oracle-se (example)
+- Engine: postgres-se (example)
 
 - License model: Bring Your Own License (BYOL) or license included
 

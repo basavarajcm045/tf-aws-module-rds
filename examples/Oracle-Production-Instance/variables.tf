@@ -1,9 +1,3 @@
-variable "create_db_instance" {
-  description = "Flag to determine whether to create a DB instance"
-  type        = bool
-  default     = false
-
-}
 
 variable "deployment_mode" {
   description = "The deployment mode for the database (e.g., 'oracle', 'sqlserver-se' or 'instance'.)"
@@ -29,11 +23,6 @@ variable "name" {
 
 }
 
-variable "subnet_ids" {
-  description = "A list of subnet IDs for the DB subnet group"
-  type        = list(string)
-}
-
 variable "vpc_security_group_ids" {
   description = "List of VPC security group IDs to associate with the DB instance"
   type        = list(string)
@@ -46,25 +35,8 @@ variable "engine" {
 
 }
 
-variable "engine_version" {
-  description = "Version of the engine to be used"
-  type        = string
-}
-
-variable "instance_class" {
-  description = "The instance class to use for the RDS instance (e.g., db.m5.large)"
-  type        = string
-
-}
-
 variable "license_model" {
   description = "The license model for the DB instance (e.g., 'license-included', 'bring-your-own-license')"
-  type        = string
-
-}
-
-variable "storage_type" {
-  description = "The storage type for the DB instance (e.g., 'gp2', 'gp3', io1')"
   type        = string
 
 }
@@ -107,6 +79,70 @@ variable "major_engine_version" {
   type        = string
   default     = null
 }
+
+# RDS Instance Variables
+
+variable "identifier" {
+  description = "Name of the RDS instance"
+  type        = string
+}
+
+variable "db_name" {
+  description = "The name of the database to create when the DB instance is created"
+  type        = string
+  default     = null
+
+}
+variable "instance_class" {
+  description = "The instance class for the DB instance (e.g., 'db.m5.large')"
+  type        = string
+
+}
+
+variable "engine_version" {
+  description = "Version of the engine to be used"
+  type        = string
+
+}
+
+variable "enable_storage_autoscaling" {
+  description = "Enable storage autoscaling"
+  type        = bool
+  default     = null
+}
+
+variable "storage_type" {
+  description = "The storage type for the DB instance (e.g., 'gp2', 'gp3', io1')"
+  type        = string
+
+}
+
+variable "iops" {
+  description = "The number of IOPS to provision for the DB instance (required if storage_type is 'io1')"
+  type        = number
+  default     = null
+
+}
+
+# Enhanced monitoring Variables
+
+variable "enable_enhanced_monitoring" {
+  description = "Enable monitoring for RDS instance "
+  type = bool
+  default = null
+  
+}
+
+variable "rds_iam_roles" {
+  description = "IAM roles to associate with the RDS instance"
+  type = list(object({
+    role_arn     = string
+    feature_name = string
+  }))
+  default = []
+
+}
+
 variable "tags" {
   description = "Common tags for all resources"
   type        = map(string)

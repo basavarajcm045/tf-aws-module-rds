@@ -47,6 +47,7 @@ data "aws_iam_role" "existing" {
 module "restore" {
   source = "../../modules"
 
+  create_db_instance = false // set to false to indicate that we want to restore from a snapshot instead of creating a new instance from scratch
   vpc_id     = data.aws_vpc.default.id
   subnet_ids = data.aws_subnets.default.ids
 
