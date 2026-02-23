@@ -1,3 +1,4 @@
+
 variable "create_db_instance" {
   description = "Flag to determine whether to create a DB instance"
   type        = bool
@@ -10,7 +11,7 @@ variable "deployment_mode" {
   type        = string
 
   validation {
-    condition     = contains(["oracle", "mysql", "sqlserver-se", "instance"], var.deployment_mode)
+    condition     = contains(["oracle", "sqlserver-se", "instance"], var.deployment_mode)
     error_message = "deployment_mode must be one of 'oracle', 'sqlserver-se', or 'instance'."
   }
 
@@ -111,7 +112,7 @@ variable "db_parameter" {
     value        = string
     apply_method = optional(string)
   }))
-  default = []
+  default = null
 
 }
 
@@ -168,7 +169,7 @@ variable "db_option" {
 
     })))
   }))
-  default = []
+  default = null
 }
 
 # Enhanced monitoring Variables
@@ -176,17 +177,16 @@ variable "db_option" {
 variable "enable_enhanced_monitoring" {
   description = "Enable monitoring for RDS instance "
   type = bool
-  default = null
+  default = true
   
 }
-
 variable "rds_iam_roles" {
   description = "IAM roles to associate with the RDS instance"
   type = list(object({
     role_arn     = string
     feature_name = string
   }))
-  default = []
+  default = null
 
 }
 
@@ -260,7 +260,7 @@ variable "max_allocated_storage" {
 variable "enable_storage_autoscaling" {
   description = "Enable storage autoscaling"
   type        = bool
-  default     = null
+  default     = true
 }
 
 variable "storage_type" {
@@ -280,14 +280,14 @@ variable "storage_type" {
 variable "iops" {
   description = "The number of IOPS to provision for the DB instance (required if storage_type is 'io1')"
   type        = number
-  default     = null
+  default     = 0
 
 }
 
 variable "storage_throughput" {
   description = "The storage throughput to provision for the DB instance (in MB/s, required if storage_type is 'gp3')"
   type        = number
-  default     = null
+  default     = 0
 
 }
 
@@ -332,7 +332,7 @@ variable "storage_encrypted" {
 variable "multi_az" {
   description = "Specifies if the RDS instance is multi-AZ"
   type        = bool
-  default     = null
+  default     = true
 
 }
 
@@ -340,7 +340,7 @@ variable "multi_az" {
 variable "manage_master_user_password" {
   description = "Flag to determine whether to manage the master user password automatically (e.g., via AWS Secrets Manager)"
   type        = bool
-  default     = null
+  default     = false
 
 }
 
@@ -400,7 +400,6 @@ variable "copy_tags_to_snapshot" {
   default     = null
   
 }
-
 variable "kms_key_id" {
   description = "The KMS key ID to use for encrypting the DB instance storage"
   type        = string
@@ -580,7 +579,7 @@ variable "create_cloudwatch_log_group" {
 variable "enabled_cloudwatch_logs_exports" {
   description = "A list of log types to export to CloudWatch Logs (e.g., 'error', 'general', 'slowquery')"
   type        = list(string)
-  default     = []
+  default     = null
 
   validation {
     condition = (

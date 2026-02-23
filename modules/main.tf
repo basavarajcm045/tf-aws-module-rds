@@ -5,10 +5,18 @@ data "aws_partition" "current" {}
 
 locals {
 
-  valid_deployment_modes = ["oracle", "sqlserver-se", "postgress", "mysqlserver"]
+  expected_family_prefix = {
+    oracle        = "^oracle-"
+    sqlserver-se  = "^sqlserver-"
+    mysql         = "^mysql"
+  }
+
+  valid_deployment_modes = ["oracle", "mysql", "sqlserver-se", "postgress", "mysqlserver"]
 
   is_oracle = var.deployment_mode == "oracle"
-  //is_sqlserver = var.deployment_mode == "sqlserver-se"
+  is_sqlserver = var.deployment_mode == "sqlserver-se"
+
+  //is_oracle_or_sqlserver = contains(["oracle", "sqlserver-se"], var.deployment_mode)
 
   skip_final_snapshot       = (var.skip_final_snapshot != null ? var.skip_final_snapshot : var.environment != "prod")
   final_snapshot_identifier = (var.skip_final_snapshot == false ? var.final_snapshot_identifier : null)
@@ -40,7 +48,7 @@ resource "null_resource" "validate_rds_configuration" {
     # --validate_deployment_mode--
     precondition {
       condition     = contains(local.valid_deployment_modes, var.deployment_mode)
-      error_message = "deployment_mode must be one of: oracle, sqlserver-se."
+      error_message = "deployment_mode must be one of: oracle, mysql, sqlserver-se."
     }
 
     # -- validate_instance_class --
@@ -101,19 +109,28 @@ resource "null_resource" "validate_rds_configuration" {
     }
 
     precondition {
-      condition     = !(var.create_db_parameter_group && var.db_parameter_group_name != null)
-      error_message = "Do not set db_parameter_group_name when create_db_parameter_group is true."
+      condition     = !(var.create_db_parameter_group && var.parameter_group_name != null)
+      error_message = "Do not set parameter_group_name when create_db_parameter_group is true."
     }
 
     # -- validate_parameter_group_family --
     precondition {
       condition = (
         local.is_oracle && can(regex("^oracle-", var.db_parameter_group_family))
-      ) //|| (local.is_sqlserver && can(regex("^sqlserver-", var.db_parameter_group_family))
-      //)
+      ) || (local.is_sqlserver && can(regex("^sqlserver-", var.db_parameter_group_family))
+      ) || (var.deployment_mode == "mysql" && can(regex("^mysql", var.db_parameter_group_family)))
+      
       error_message = "db_parameter_group_family does not match the selected deployment_mode."
     }
 
+    precondition {
+      condition = can(
+        regex(local.expected_family_prefix[var.deployment_mode], var.db_parameter_group_family
+        )
+      )
+
+     error_message = "db_parameter_group_family must start with ${local.expected_family_prefix[var.deployment_mode]} for the selected deployment_mode."
+    }       
     # -- validate_option_group --
     precondition {
       condition     = !var.create_db_option_group || (var.engine != null && var.major_engine_version != null)
@@ -121,8 +138,8 @@ resource "null_resource" "validate_rds_configuration" {
     }
 
     precondition {
-      condition     = !(var.create_db_option_group && var.db_option_group_name != null)
-      error_message = "Do not set db_option_group_name when create_db_option_group is true."
+      condition     = !(var.create_db_option_group && var.option_group_name != null)
+      error_message = "Do not set option_group_name when create_db_option_group is true."
     }
 
     # -- validate_prod_settings --
@@ -144,7 +161,7 @@ resource "null_resource" "validate_rds_configuration" {
     # -- validate_rds_iam_roles --
     precondition {
       condition = alltrue([
-        for r in var.rds_iam_roles :
+        for r in coalesce(var.rds_iam_roles, []) :
         can(regex("^arn:aws:iam::[0-9]{12}:role/.+", r.role_arn))
       ])
       error_message = "Each rds_iam_roles.role_arn must be a valid IAM role ARN."
@@ -154,7 +171,7 @@ resource "null_resource" "validate_rds_configuration" {
     precondition {
       condition = (var.storage_type != "gp3" && var.storage_type != "io1" && var.storage_type != "io2") || var.iops > 0
 
-      error_message = "iops must be > 0 when storage_type is io1 or io2."
+      error_message = "iops must be > 0 when storage_type is gp3, io1 or io2."
     }
 
     precondition {
@@ -320,10 +337,11 @@ resource "aws_db_option_group" "this" {
 
 # IAM Role for RDS to access other AWS services (optional, based on options used)
 resource "aws_db_instance_role_association" "this" {
-  for_each = {
+  
+  for_each = (var.create_db_instance && var.enable_enhanced_monitoring) ? {
     for idx, role in var.rds_iam_roles :
     idx => role
-  }
+  } : {}
 
   db_instance_identifier = aws_db_instance.this[0].identifier
   role_arn               = each.value.role_arn
@@ -333,8 +351,8 @@ resource "aws_db_instance_role_association" "this" {
 #common computed locals
 locals {
   db_subnet_group_name = var.db_subnet_group_name != null ? var.db_subnet_group_name : (length(aws_db_subnet_group.default) > 0 ? aws_db_subnet_group.default[0].name : null)
-  parameter_group_name = var.db_parameter_group_name != "" ? var.db_parameter_group_name : (length(aws_db_parameter_group.this) > 0 ? aws_db_parameter_group.this[0].name : null)
-  option_group_name    = var.db_option_group_name != "" ? var.db_option_group_name : (length(aws_db_option_group.this) > 0 ? aws_db_option_group.this[0].name : null)
+  parameter_group_name = var.parameter_group_name != "" ? var.parameter_group_name : (length(aws_db_parameter_group.this) > 0 ? aws_db_parameter_group.this[0].name : null)
+  option_group_name    = var.option_group_name != "" ? var.option_group_name : (length(aws_db_option_group.this) > 0 ? aws_db_option_group.this[0].name : null)
 }
 
 # RDS instance creation based on conditions
@@ -358,8 +376,11 @@ resource "aws_db_instance" "this" {
   auto_minor_version_upgrade = var.auto_minor_version_upgrade
   //custom_iam_instance_profile = "AWSRDSCustomInstanceProfile"
 
-  username                    = var.username
-  password                    = var.manage_master_user_password ? null : var.password
+  //username                    = var.username
+  //password                    = var.manage_master_user_password ? null : var.password
+  
+  username = var.master_username
+  password = var.manage_master_user_password ? null : var.master_password
   manage_master_user_password = var.manage_master_user_password
   //master_user_secret_kms_key_id = aws_kms_key.rds.id //if not set, AWS uses default kms_key
   //port = var.port
@@ -371,6 +392,9 @@ resource "aws_db_instance" "this" {
   skip_final_snapshot       = local.skip_final_snapshot       // true for dev/test, false for prod, condition make false for prod env   
   final_snapshot_identifier = local.final_snapshot_identifier //only if skip_final_snapshot is false, enable this if env is prod
   apply_immediately         = var.apply_immediately           // Set to true for immediate application of changes
+  
+  copy_tags_to_snapshot     = var.copy_tags_to_snapshot
+  snapshot_identifier       = var.snapshot_identifier != "" ? var.snapshot_identifier : null
 
   kms_key_id = var.storage_encrypted ? var.kms_key_id : null
   //kms_key_id        = var.storage_encrypted ? (var.kms_key_id != null ? var.kms_key_id : (var.create_kms_key ? aws_kms_key.rds[0].arn : null)) : null

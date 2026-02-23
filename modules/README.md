@@ -2,24 +2,40 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
+- [Overview](#overview) 
 - [Features](#Features)
 - [Requirements](#Requirements)
 - [Usage](#usage)
-  - [Simple Storage Service](#simple-storage-service)
-- [Configuration Guide](#configuration-guide)
-- [Examples](#examples)
+- [Resources](#Resources)
+- [Security Best Practices](#securitybestpractices)
+- [Cost Optimization](#costoptimization)
 - [Inputs](#inputs)
 - [Outputs](#outputs)
-- [Notes](#notes)
+- [Troubleshooting](#troubleshooting)
 
 ## Overview
 
 Enterprise-grade Terraform module for deploying and managing AWS RDS Oracle databases with comprehensive security, monitoring, backup, and compliance features.
 
+This repository contains example implementations of the reusable RDS Terraform module.
+The module provisions a fully configured Amazon RDS instance along with:
+
+- DB Subnet Group
+
+- DB Parameter Group
+
+- DB Option Group
+
+- CloudWatch Log Groups
+
+- CloudWatch Alarms
+
+- Monitoring & logging configuration
+
 ## Features
 
 ### Oracle Engine Support
+
 - **Oracle Database Enterprise Edition (oracle-ee)**
 - **Oracle Database Standard Edition 2 (oracle-se2)**
 - **Container Database (CDB) variants**
@@ -27,12 +43,14 @@ Enterprise-grade Terraform module for deploying and managing AWS RDS Oracle data
 - Future-proof version management
 
 ### Licensing & Deployment
+
 - **License Included (LI)** - Default
 - **Bring Your Own License (BYOL)**
 - **Single-AZ** deployment for dev/test
 - **Multi-AZ** deployment for production
 
 ### Security (Enterprise-Grade)
+
 - **Encryption at Rest** - KMS encryption (mandatory)
 - **Secrets Manager Integration** - Automatic credential rotation
 - **Enhanced Monitoring** - OS-level metrics
@@ -43,6 +61,7 @@ Enterprise-grade Terraform module for deploying and managing AWS RDS Oracle data
 - **IAM Database Authentication** - Optional
 
 ### Backup & Recovery
+
 - **Automated Backups** - 7-35 days retention
 - **Manual Snapshots** - On-demand backups
 - **Point-in-Time Recovery** - Up to retention period
@@ -50,11 +69,13 @@ Enterprise-grade Terraform module for deploying and managing AWS RDS Oracle data
 - **Final Snapshot** - Before deletion
 
 ### Performance Features
+
 - **CloudWatch Alarms** - CPU, Storage, Connections, IOPS
 - **Provisioned IOPS** - io1/io2 storage with custom IOPS
 - **gp3 Storage** - Configurable IOPS and throughput
 
 ### Organization Standards
+
 - **Required Tags** - CostCenter, Team, Compliance
 - **Tag Validation** - Enforced via preconditions
 - **Lifecycle Management** - Prevent destructive changes
@@ -66,25 +87,27 @@ Enterprise-grade Terraform module for deploying and managing AWS RDS Oracle data
 | terraform | >= 1.14.0 | 
 | aws | >= 6.0.0 |
 
-## Module Usage
-### Examples Directory Structure 
+## Usage
+
+### Examples Directory Structure
 
 see the **`examples/`**` directory for small, focused examples you can copy and adapt.
 
-1. **Basic Production Example** - Multi-AZ with all features
-2. **Development/Test Environment (Standard Edition 2)** - Single-AZ cost-optimized
-3. **High-Performance Production** - Provisioned IOPS
+1. **Oracle Production Instance Example** - Multi-AZ with all features
+2. **Oracle Development/Test Instance Example** - Single-AZ cost-optimized
+
 
 - [Oracle Production Instance](#oracleproductioninstance)
+- [Oracle Dev Insatnce](#oracledevinsatnce)
 - [Mysql Production Instance](#mysqlproductioninsatnce)
-- [Postgress Production Instance](#postgressproductioninsatnce)
+
 - [Restore from Snapshot](#restore from snapshot)
 
-### Oracle Production Intance(Provisioned IOPS)
+### Oracle Production Intance
 
 ```hcl
 module "oracle_high_perf" {
-  source = "./modules/"
+  source = "../../modules/"
 
   environment = "production"
 
@@ -104,7 +127,7 @@ module "oracle_high_perf" {
   # Network
   subnet_ids             = var.subnet_ids
   vpc_security_group_ids = [aws_security_group.rds.id]
-  deployment_option      = "multi-az"
+  multi-az.              = true
 
   manage_master_user_password = true
 
@@ -179,9 +202,9 @@ module "oracle_high_perf" {
 
 ```hcl
 module "oracle_dev" {
-  source = "./modules/"
+  source = "../../modules/"
 
-  environment = "development"
+  environment = "dev"
 
   # Oracle SE2 19c (lower cost)
   engine               = "oracle-se2"
@@ -197,7 +220,7 @@ module "oracle_dev" {
   # Network
   subnet_ids             = var.subnet_ids
   vpc_security_group_ids = [aws_security_group.rds.id]
-  deployment_option      = "single-az"  # Single-AZ for dev
+  multi-az.              = false  # Single-AZ for dev
 
   # Database
   database_name = "DEVDB"
@@ -208,26 +231,94 @@ module "oracle_dev" {
   skip_final_snapshot    = true
 
   # Monitoring
-  # enable_cloudwatch_logs      = true
-  #enable_enhanced_monitoring  = true
-  #enable_performance_insights = true
+  create_cloudwatch_log_group = true
+  enable_enhanced_monitoring  = true
   
   # Security - less strict for dev
   deletion_protection = false
   apply_immediately   = true
 
   # Required Tags
-  required_tags = {
+  equired_tags = {
     CostCenter = "Engineering"
-    Team       = "Development"
-    Compliance = "Internal"
+    Team       = "Database"
+    Compliance = "SOC2"
   }
 }
 ```
+
 ### Mysql Production Instance
 
-  
+```hcl
+module "oracle_high_perf" {
+  source = "../../modules/"
 
+  environment = "prod"
+
+  # Mysql EE
+  engine               = "mysql-ee"
+  engine_version       = "8.0"
+  license_model        = "license-included"
+
+  # High-performance instance
+  instance_class    = "db.r6i.2xlarge"
+  allocated_storage = 1000
+  storage_type      = "io2"
+  iops              = 10000
+  storage_encrypted = true
+  max_allocated_storage     = 2000
+
+  # Network
+  subnet_ids             = var.subnet_ids
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  multi-az               = true
+
+  manage_master_user_password = true
+
+  # Backup
+  backup_retention_period = 35
+
+  # Custom Parameter Group
+  create_parameter_group = true
+  parameter_group_family = "mysql8.4"
+  
+  db_parameter = [
+    {
+      name         = "slow_query_log"
+      value        = "1"
+      apply_method = "pending-reboot" //"immediate", pending-reboot, 
+    },
+
+    {
+      name         = "long_query_time"
+      value        = "2"
+      apply_method = "pending-reboot"
+    }
+  ]
+
+  # Custom Option Group
+  create_db_option_group = false
+  major_engine_version   = 8.0
+  
+  # Monitoring - Extended retention
+  
+  create_cloudwatch_log_group            = true
+  enabled_cloudwatch_logs_exports        = ["general"]
+  cloudwatch_log_group_retention_in_days = 14
+  cloudwatch_log_group_kms_key_id = var.cloudwatch_kms_key
+  cloudwatch_log_group_skip_destroy = true
+  cloudwatch_log_group_class = STANDARD // INFREQUENT_ACCESS
+  region = var.region
+
+  enable_enhanced_monitoring         = true
+  monitoring_interval                = 30
+  performance_insights_enabled        = true
+  performance_insights_retention_period = 731  # 2 years
+
+  # Security
+  deletion_protection = true
+}
+```
 
 ### Restore from Snapshot
 
@@ -236,48 +327,21 @@ module "oracle_restored" {
   source = "../modules/"
 
   environment = "production"
-  engine               = "oracle-ee"
-  engine_version.      = "19"
-
-  instance_class    = "db.r6i.xlarge"
-  allocated_storage = 500
-  storage_encrypted = true
 
   # Restore from snapshot
   snapshot_identifier = "arn:aws:rds:us-east-1:123456789012:snapshot:myapp-snapshot-2024-01-15"
 
   subnet_ids             = var.subnet_ids
-  vpc_security_group_ids = [aws_security_group.rds.id]
-  deployment_option      = "multi-az"
-
   manage_master_user_password = true
 
-  backup_retention_period = 30
+  backup_retention_period = ""
 
-  enable_cloudwatch_logs      = true
+  create_cloudwatch_log_group      = ""
 
-  enable_performance_insights = true
+  enable_performance_insights = ""
 
-  required_tags = {
-    CostCenter = "Engineering"
-    Team       = "DR"
-    Compliance = "SOC2"
-  }
 }
 ```
-
-## Configuration Guide
-
-### Basic Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `project_name` | string | - | Project name (required) |
-| `environment` | string | - | Environment (dev, staging, prod) |
-
-
-### Versioning
-### Object Lock (Compliance)
 
 ## Resources
 
@@ -286,6 +350,80 @@ module "oracle_restored" {
 | [aws_cloudwatch_log_group.this] | resource |
 | [aws_db_instance.this] | resource |
 | [aws_iam_role_policy_attachment.enhanced_monitoring] | resource |
+
+## Security Best Practices
+
+### 1. Encryption
+
+```hcl
+storage_encrypted = true  # MANDATORY
+create_kms_key    = true  # Recommended
+```
+
+### 2. Network Isolation
+
+```hcl
+publicly_accessible = false  # ENFORCED
+multi-az           = true  # Production
+```
+
+### 3. Access Control
+
+```hcl
+manage_master_user_password = true  # Use Secrets Manager
+vpc_security_group_ids      = [sg_id]  # Restrict access
+```
+
+### 4. Monitoring & Auditing
+
+```hcl
+create_cloudwatch_log_group      = true
+cloudwatch_log_types       = ["alert", "audit", "trace", "listener"]
+enable_enhanced_monitoring  = true
+enable_performance_insights = true
+```
+
+### 5. Backup & Recovery
+
+```hcl
+backup_retention_period = 30  # 30 days for production
+skip_final_snapshot    = false
+copy_tags_to_snapshot  = true
+deletion_protection    = true
+```
+
+## Cost Optimization
+
+### 1. Right-Size Instances
+
+- Start with smaller instances
+- Monitor Performance Insights
+- Scale up based on metrics
+
+### 2. Storage Optimization
+
+```hcl
+enable_storage_autoscaling = true
+max_allocated_storage     = 2 * allocated_storage
+```
+
+### 3. Use gp3 Instead of io2
+
+- 20% cheaper than gp2
+- Configurable performance
+- Upgrade from gp2 without downtime
+
+### 4. Optimize Backups
+
+- 7 days for dev/test
+- 30 days for production
+- Delete old manual snapshots
+
+### 5. Reserved Instances
+
+- 30-60% savings
+- 1 or 3-year terms
+- Match instance class exactly
 
 ## Inputs
 
@@ -437,98 +575,26 @@ module "oracle_restored" {
 | <a name="output_enhanced_monitoring_iam_role_arn"></a> [enhanced\_monitoring\_iam\_role\_arn](#output\_enhanced\_monitoring\_iam\_role\_arn) | The Amazon Resource Name (ARN) specifying the monitoring role |
 | <a name="output_enhanced_monitoring_iam_role_name"></a> [enhanced\_monitoring\_iam\_role\_name](#output\_enhanced\_monitoring\_iam\_role\_name) | The name of the monitoring role |
 
-
-## Oracle Versions Supported
-
-| Version | Major Version | Status | Family |
-|---------|--------------|--------|--------|
-| 12.1.0.2.v* | 12.1 | Legacy | oracle-ee-12.1 |
-| 12.2.0.1.ru-* | 12.2 | Legacy | oracle-ee-12.2 |
-| 19.0.0.0.ru-* | 19 | LTS (Recommended) | oracle-ee-19 |
-| 21.0.0.0.ru-* | 21 | Current | oracle-ee-21 |
-
-**Note**: Version 19 is the current Long Term Support (LTS) release.
-
-## Security Best Practices
-
-### 1. Encryption
-```hcl
-storage_encrypted = true  # MANDATORY
-create_kms_key    = true  # Recommended
-```
-
-### 2. Network Isolation
-```hcl
-publicly_accessible = false  # ENFORCED
-deployment_option   = "multi-az"  # Production
-```
-
-### 3. Access Control
-```hcl
-manage_master_user_password = true  # Use Secrets Manager
-vpc_security_group_ids      = [sg_id]  # Restrict access
-```
-
-### 4. Monitoring & Auditing
-```hcl
-enable_cloudwatch_logs      = true
-cloudwatch_log_types       = ["alert", "audit", "trace", "listener"]
-enable_enhanced_monitoring  = true
-enable_performance_insights = true
-```
-
-### 5. Backup & Recovery
-```hcl
-backup_retention_period = 30  # 30 days for production
-skip_final_snapshot    = false
-copy_tags_to_snapshot  = true
-deletion_protection    = true
-```
-
-## Cost Optimization
-
-### 1. Right-Size Instances
-- Start with smaller instances
-- Monitor Performance Insights
-- Scale up based on metrics
-
-### 2. Storage Optimization
-```hcl
-enable_storage_autoscaling = true
-max_allocated_storage     = 2 * allocated_storage
-```
-
-### 3. Use gp3 Instead of io2
-- 20% cheaper than gp2
-- Configurable performance
-- Upgrade from gp2 without downtime
-
-### 4. Optimize Backups
-- 7 days for dev/test
-- 30 days for production
-- Delete old manual snapshots
-
-### 5. Reserved Instances
-- 30-60% savings
-- 1 or 3-year terms
-- Match instance class exactly
-
 ## Troubleshooting
 
 ### Common Issues
 
 **Issue**: Storage full
+
 - **Solution**: Enable storage autoscaling
 - **Monitor**: Free storage alarm
 
 **Issue**: High CPU
+
 - **Solution**: Upgrade instance class
 - **Monitor**: CPU utilization alarm
 
 **Issue**: Connection errors
+
 - **Solution**: Check security groups
 - **Verify**: VPC routing, NACLs
 
 **Issue**: Slow queries
+
 - **Solution**: Review Performance Insights
 - **Enable**: SQL tracing

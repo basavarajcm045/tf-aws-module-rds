@@ -35,13 +35,13 @@ data "aws_iam_role" "existing" {
   name = "AWSServiceRoleForRDS"
 }
 
-data "aws_secretsmanager_secret" "rds" {
+/*data "aws_secretsmanager_secret" "rds" {
   name = "prod/oracle/rds"
 }
 
 data "aws_secretsmanager_secret_version" "rds" {
   secret_id = data.aws_secretsmanager_secret.rds.id
-}
+}*/
 
 data "aws_rds_orderable_db_instance" "custom-oracle" {
   engine                     = "oracle-se2"
@@ -55,9 +55,9 @@ data "aws_rds_orderable_db_instance" "custom-oracle" {
   key_id = "example-" # KMS key associated with the CEV
 }*/
 
-locals {
+/*locals {
   rds_secret = jsondecode(data.aws_secretsmanager_secret_version.rds.secret_string)
-}
+}*/
 
 module "oracle_db" {
   source = "../../modules"
@@ -145,33 +145,33 @@ module "oracle_db" {
   ]
 
   # RDS instance settings
-  identifier            = "my-ims-db-instance"
-  db_name               = "IMSDB"
-  engine                = data.aws_rds_orderable_db_instance.custom-oracle.engine
-  engine_version        = data.aws_rds_orderable_db_instance.custom-oracle.engine_version
-  instance_class        = data.aws_rds_orderable_db_instance.custom-oracle.preferred_instance_classes[0]
-  storage_type          = data.aws_rds_orderable_db_instance.custom-oracle.storage_type
-  allocated_storage     = 200
-  max_allocated_storage = 500
-  storage_encrypted     = true
-  storage_throughput    = 1000
-
+  identifier                 = "my-ims-db-instance"
+  db_name                    = "IMSDB"
+  engine                     = data.aws_rds_orderable_db_instance.custom-oracle.engine
+  engine_version             = data.aws_rds_orderable_db_instance.custom-oracle.engine_version
+  instance_class             = data.aws_rds_orderable_db_instance.custom-oracle.preferred_instance_classes[0]
+  storage_type               = data.aws_rds_orderable_db_instance.custom-oracle.storage_type
+  allocated_storage          = 200
+  max_allocated_storage      = 500
+  storage_encrypted          = true
+  storage_throughput         = 1000
+  iops                       = 100
   license_model              = data.aws_rds_orderable_db_instance.custom-oracle.license_model
   publicly_accessible        = false
   auto_minor_version_upgrade = false
+  enable_storage_autoscaling = true
+  //username = local.rds_secret.username //No need to pass the username and password as variables, if manage_master_user_password is true 
+  //password = local.rds_secret.password
 
-  username = local.rds_secret.username //No need to pass the username and password as variables, if manage_master_user_password is true 
-  password = local.rds_secret.password
-
-  manage_master_user_password = false
-  //master_username             = "adminuser"
+  manage_master_user_password = true
+  master_username             = "adminuser"
   //aws_db_instance.oracle.master_user_secret[0].secret_arn
 
   backup_retention_period = 7
   backup_window           = "03:00-04:00"
   maintenance_window      = "Sun:23:00-Mon:01:00"
   deletion_protection     = true
-  skip_final_snapshot     = true
+  skip_final_snapshot     = false
   apply_immediately       = false
 
 
@@ -211,11 +211,13 @@ module "oracle_db" {
   create_cloudwatch_log_group            = true
   enabled_cloudwatch_logs_exports        = ["alert", "audit", "listener", "trace"] // specify the log types to export to CloudWatch Logs, refer to AWS documentation for supported log types for Oracle SE2.
   cloudwatch_log_group_retention_in_days = 14                                      // specify the retention period for the CloudWatch log groups in days
-  cloudwatch_log_group_kms_key_id        = ""                                      // provide the KMS key ID to encrypt the CloudWatch log groups, if needed
+  cloudwatch_log_group_kms_key_id        = "data.aws_kms_key.by_id"                // provide the KMS key ID to encrypt the CloudWatch log groups, if needed
   cloudwatch_log_group_skip_destroy      = false                                   // set to true to prevent the CloudWatch log groups from being destroyed when the RDS instance is deleted
   cloudwatch_log_group_class             = "STANDARD"                              // specify the CloudWatch log group class, either STANDARD or INFREQUENT_ACCESS. The default is STANDARD. Note that using INFREQUENT_ACCESS may result in additional costs, refer to AWS documentation for pricing details.
   region                                 = "eu-west-1"
+  cloudwatch_log_group_tags = {
 
+  }
   # backup replication settings
   create_replication     = false
   source_db_instance_arn = "" // provide the ARN of the source DB instance to replicate from, if create_replication is true
