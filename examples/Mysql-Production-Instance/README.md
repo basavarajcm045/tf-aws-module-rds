@@ -62,7 +62,3 @@ terraform apply
 | `backup_retention_period` | Backup retention days        |
 | `monitoring_interval`     | Enhanced monitoring interval |
 
-
-performance_insights_enabled          = true
-# // specify the retention period for Performance Insights data in days, or set to -1 for indefinite retention  
-performance_insights_retention_period = 7 
